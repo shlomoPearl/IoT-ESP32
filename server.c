@@ -10,10 +10,11 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include "cJSON.h"
 
 #define PORT "3490"  // the port users will be connecting to
-
-#define BACKLOG 10   // how many pending connections queue will hold
+#define MAXDATASIZE 128
+#define BACKLOG 1   // because its just for self uses
 
 void sigchld_handler(int s)
 {
@@ -121,10 +122,31 @@ int main(void)
 
         if (!fork()) { // this is the child process
             close(sockfd); // child doesn't need the listener
-            if (send(new_fd, "Hello, world!", 13, 0) == -1)
-                perror("send");
-            close(new_fd);
-            exit(0);
+            int numbytes;
+            char buf[MAXDATASIZE];
+            if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+                perror("recv");
+                exit(1);
+            }
+            buf[numbytes] = '\0';
+            // parse the JSON data
+            cJSON *json = cJSON_Parse(buf);
+            if (json == NULL) {
+                const char *error_ptr = cJSON_GetErrorPtr();
+                if (error_ptr != NULL) {
+                    printf("Error: %s\n", error_ptr);
+                }
+                cJSON_Delete(json);
+                return 1;
+            }
+            // access the JSON data
+            cJSON *event = cJSON_GetObjectItemCaseSensitive(json, "EVENT");
+            cJSON *time_e = cJSON_GetObjectItemCaseSensitive(json, "TIME");
+            if ((cJSON_IsString(event) && (event->valuestring != NULL))
+                && (cJSON_IsString(time_e) && (time_e->valuestring != NULL))) {
+                printf("RECV: EVENT: %s\nTIME: %s", event->valuestring, time_e->valuestring);
+            }
+            cJSON_Delete(json);
         }
         close(new_fd);  // parent doesn't need this
     }
