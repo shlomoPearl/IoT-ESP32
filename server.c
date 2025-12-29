@@ -12,12 +12,14 @@
 #include <signal.h>
 #include "cJSON.h"
 
-#define PORT "3490"  // the port users will be connecting to
+#define PORT "3490"  // the port users will be connecting to.
 #define MAXDATASIZE 128
-#define BACKLOG 1   // because its just for self uses
+#define BACKLOG 5   // in case the sensor makes multiple recognitions at once.
+#define REPORT "report.txt"
 
-void sigchld_handler(int s)
-{
+FILE *log_ptr;
+
+void sigchld_handler(int s){
     (void)s; // quiet unused variable warning
 
     // waitpid() might overwrite errno, so we save and restore it:
@@ -30,13 +32,47 @@ void sigchld_handler(int s)
 
 
 // get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
+void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET) {
         return &(((struct sockaddr_in*)sa)->sin_addr);
     }
 
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void log_event(char* event, char* time_e) {
+    log_ptr = fopen(REPORT, "a");
+    if (log_ptr == NULL) {
+        printf("Error: Unable to open the log file.\n");
+        return;
+    }
+    fprintf(log_ptr, "EVENT: %s | TIME: %s\n", event, time_e);
+    fclose(log_ptr);
+}
+
+void write_json(cJSON *json) {
+    // parse the JSON data
+    if (json == NULL) {
+        const char *error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL) {
+            printf("Error: %s\n", error_ptr);
+        }
+        cJSON_Delete(json);
+        return;
+    }
+    // access the JSON data
+    char* event_str = NULL;
+    char* time_e_str = NULL;
+    cJSON *event = cJSON_GetObjectItemCaseSensitive(json, "EVENT");
+    cJSON *time_e = cJSON_GetObjectItemCaseSensitive(json, "TIME");
+    if ((cJSON_IsString(event) && (event->valuestring != NULL))
+        && (cJSON_IsString(time_e) && (time_e->valuestring != NULL))) {
+            event_str = event->valuestring;
+            time_e_str = time_e->valuestring;
+    }
+    if (event_str != NULL && time_e_str != NULL){
+        log_event(event_str, time_e_str);
+    }
 }
 
 int main(void)
@@ -58,6 +94,7 @@ int main(void)
 
     if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        freeaddrinfo(servinfo);
         return 1;
     }
 
@@ -131,25 +168,10 @@ int main(void)
             buf[numbytes] = '\0';
             // parse the JSON data
             cJSON *json = cJSON_Parse(buf);
-            if (json == NULL) {
-                const char *error_ptr = cJSON_GetErrorPtr();
-                if (error_ptr != NULL) {
-                    printf("Error: %s\n", error_ptr);
-                }
-                cJSON_Delete(json);
-                return 1;
-            }
-            // access the JSON data
-            cJSON *event = cJSON_GetObjectItemCaseSensitive(json, "EVENT");
-            cJSON *time_e = cJSON_GetObjectItemCaseSensitive(json, "TIME");
-            if ((cJSON_IsString(event) && (event->valuestring != NULL))
-                && (cJSON_IsString(time_e) && (time_e->valuestring != NULL))) {
-                printf("RECV: EVENT: %s\nTIME: %s", event->valuestring, time_e->valuestring);
-            }
+            write_json(json);
             cJSON_Delete(json);
         }
         close(new_fd);  // parent doesn't need this
     }
-
     return 0;
 }
