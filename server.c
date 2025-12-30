@@ -12,7 +12,7 @@
 #include <signal.h>
 #include "cJSON.h"
 
-#define PORT "3490"  // the port users will be connecting to.
+#define PORT "7777"  // the port users will be connecting to.
 #define MAXDATASIZE 128
 #define BACKLOG 5   // in case the sensor makes multiple recognitions at once.
 #define REPORT "report.txt"
@@ -149,7 +149,7 @@ int main(void)
             &sin_size);
         if (new_fd == -1) {
             perror("accept");
-            continue;
+            continue;   
         }
 
         inet_ntop(their_addr.ss_family,
@@ -161,17 +161,25 @@ int main(void)
             close(sockfd); // child doesn't need the listener
             int numbytes;
             char buf[MAXDATASIZE];
-            if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+            if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
                 perror("recv");
                 exit(1);
+            }
+            if (numbytes == 0) {
+            // Connection closed by client
+            close(new_fd);
+            exit(0);
             }
             buf[numbytes] = '\0';
             // parse the JSON data
             cJSON *json = cJSON_Parse(buf);
             write_json(json);
             cJSON_Delete(json);
+            close(new_fd);
+            exit(0);
         }
         close(new_fd);  // parent doesn't need this
     }
+    close(sockfd);
     return 0;
 }
