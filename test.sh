@@ -1,0 +1,2 @@
+#!/bin/bash
+echo '{EVENT:test,TIME:2024-12-30}' | nc localhost 7777
