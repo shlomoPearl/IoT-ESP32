@@ -1,7 +1,9 @@
 test.c
+!test.txt
 test
 server
 s
 cJSON.h
 cJSON.c
 *.json
+*.txt
