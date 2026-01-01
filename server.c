@@ -10,14 +10,17 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <pthread.h>
 #include "cJSON.h"
 
 #define PORT "7777"  // the port users will be connecting to.
 #define MAXDATASIZE 128
+#define THREADS_NUM 8
 #define BACKLOG 5   // in case the sensor makes multiple recognitions at once.
 #define REPORT "report.txt"
 
 FILE *log_ptr;
+pthread_mutex_t log_mutex; 
 
 void sigchld_handler(int s){
     (void)s; // quiet unused variable warning
@@ -41,6 +44,7 @@ void *get_in_addr(struct sockaddr *sa){
 }
 
 void log_event(char* event, char* time_e) {
+    pthread_mutex_lock(&log_mutex);
     log_ptr = fopen(REPORT, "a");
     if (log_ptr == NULL) {
         printf("Error: Unable to open the log file.\n");
@@ -48,6 +52,7 @@ void log_event(char* event, char* time_e) {
     }
     fprintf(log_ptr, "EVENT: %s | TIME: %s\n", event, time_e);
     fclose(log_ptr);
+    pthread_mutex_unlock(&log_mutex);
 }
 
 void write_json(cJSON *json) {
@@ -86,6 +91,7 @@ int main(void)
     int yes=1;
     char s[INET6_ADDRSTRLEN];
     int rv;
+    pthread_mutex_init(&log_mutex, NULL);
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -180,6 +186,7 @@ int main(void)
         }
         close(new_fd);  // parent doesn't need this
     }
+    pthread_mutex_destroy(&log_mutex);
     close(sockfd);
     return 0;
 }
