@@ -27,7 +27,7 @@ void enqueue(Queue* q, int value) {
 int dequeue(Queue* q) {
     if (isEmpty(q)) {
         printf("Queue is empty. Cannot dequeue\n");
-        return NULL; // Indicating that the queue is empty
+        return -1; // Indicating that the queue is empty
     }
     int value = q->items[q->first];
     q->first = (q->first + 1) % MAX_SIZE;
