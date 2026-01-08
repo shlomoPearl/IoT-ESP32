@@ -13,9 +13,10 @@
 #include <pthread.h>
 #include "cJSON.h"
 #include "queue.h"
+#include "http_request.h"
 
 #define PORT "7777"  // the port users will be connecting to.
-#define MAXDATASIZE 128
+#define MAXDATASIZE 4096
 #define THREADS_NUM 8
 #define BACKLOG 10   // in case the sensor makes multiple recognitions at once.
 #define REPORT "report.txt"
@@ -94,8 +95,14 @@ void* listen_thread() {
         }
         buf[numbytes] = '\0';
         // parse the JSON data
-        printf("Received: %s\n", buf);
-        cJSON *json = cJSON_Parse(buf);
+        // printf("Received: \n%s\n", buf);
+        HTTPRequest http_request = http_parser(buf);
+        printf("DEBUG $$ Method: %s\n", http_request.method);
+        printf("DEBUG $$ Path: %s\n", http_request.path);
+        printf("DEBUG $$ Version: %s\n", http_request.version);
+        printf("DEBUG $$ Body Length: %d\n", http_request.body_length);
+        printf("DEBUG $$ Body %s\n", http_request.body);
+        cJSON *json = cJSON_Parse(http_request.body);
         // char* json_s = cJSON_Print(json);
         // printf("Parsed JSON: %s\n", json_s);
         write_json(json);
