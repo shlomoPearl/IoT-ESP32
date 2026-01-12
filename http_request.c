@@ -9,6 +9,7 @@
 
 HTTPRequest http_parser(char request_s[]) {
     HTTPRequest http_request;
+    http_request.body_length = 0;
     int body_f = 0;
     http_request.header_count = 0;
     const char *delimiter = "\r\n";
