@@ -1,3 +1,4 @@
+#pragma once
 typedef struct {
     char method[16];        // GET, POST, etc.
     char path[256];         // /submit

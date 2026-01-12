@@ -1,4 +1,7 @@
+#pragma once
 #include <stdlib.h>
+#define K 0
+#define V 1
 
 typedef struct {
     char version[16];       
@@ -11,3 +14,4 @@ typedef struct {
 } HTTPResponse;
 
 void response_to_s(char* ,HTTPResponse, size_t); 
+void build_respone(HTTPResponse*, int, int , const char* ,size_t);
