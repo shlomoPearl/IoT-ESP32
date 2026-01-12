@@ -27,10 +27,6 @@ pthread_mutex_t queue_mutex;
 pthread_cond_t queue_cond;
 Queue q_clients;
 
-HTTPResponse res_success = {"HTTP/1.1", 200, "OK",
-                             {{ "Content-Type", "application/json" },{ "Content-Length", "40" }},
-                              2,"{\"status\":\"success\",\"message\":\"Success\"}",40};
-
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET) {
@@ -99,27 +95,31 @@ void* listen_thread() {
             return NULL;
         }
         buf[numbytes] = '\0';
+        HTTPRequest http_request = http_parser(buf);
         
-        // send back response back
+        if (http_request.body_length > 0){
+            // send back response back
+            cJSON *json = cJSON_Parse(http_request.body);
+            write_json(json);
+            cJSON_Delete(json);
+        }
+        
         char* res_str = malloc(sizeof(char)*MAXDATASIZE);
-        response_to_s(res_str, res_success, MAXDATASIZE);
+        HTTPResponse* http_response = malloc(sizeof(HTTPResponse));
+        const char* response_body = "{\"status\":\"received\", \"message\":\"Success\"}";
+        build_respone(http_response, 0, 0, response_body, strlen(response_body));
+        response_to_s(res_str, *http_response, MAXDATASIZE);
         if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
             perror("response");
         }
         free(res_str);
-        
-        // parse the JSON data
-        HTTPRequest http_request = http_parser(buf);
+        free(http_response);
         // printf("Received: \n%s\n$$$$$$$$\n\n", buf);
         // printf("DEBUG $$ Method: %s\n", http_request.method);
         // printf("DEBUG $$ Path: %s\n", http_request.path);
         // printf("DEBUG $$ Version: %s\n", http_request.version);
         // printf("DEBUG $$ Body Length: %d\n", http_request.body_length);
         // printf("DEBUG $$ Body %s\n", http_request.body);
-        cJSON *json = cJSON_Parse(http_request.body);
-
-        write_json(json);
-        cJSON_Delete(json);
         close(new_fd);
     }
     return NULL;
