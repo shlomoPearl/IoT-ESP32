@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include "http_response.h"
 
-#define K 0
-#define V 1
+const char HTTP_VERSION[] = "HTTP/1.1";
+int HTTP_CODE[] = {200,300,400,500};
+char HTTP_TEXT[][30]  = {"OK","Multiple Choices","Bad Request","Internal Server Error"};
 
 void response_to_s(char* response_s, HTTPResponse http_res, size_t size){
     const char* delimiter = "\r\n";
@@ -22,4 +23,19 @@ void response_to_s(char* response_s, HTTPResponse http_res, size_t size){
     count += snprintf(response_s + count, size-count, "%s",delimiter);
     // body
     count += snprintf(response_s + count, size-count, "%s%s",http_res.body , delimiter);
+}
+
+void build_respone(HTTPResponse* http_res, int code_i, int text_i , const char* body ,size_t body_length){
+    snprintf(http_res->version, sizeof(HTTP_VERSION), "%s", HTTP_VERSION);
+    http_res->status_code = HTTP_CODE[code_i];
+    snprintf(http_res->status_text, sizeof(HTTP_TEXT[text_i]), "%s", HTTP_TEXT[text_i]);
+    http_res->header_count = 0;
+    snprintf(http_res->headers[http_res->header_count][K], sizeof("Content-Type"), "Content-Type");
+    snprintf(http_res->headers[http_res->header_count][V], sizeof("application/json"), "application/json");
+    http_res->header_count++;
+    snprintf(http_res->headers[http_res->header_count][K], sizeof("Content-Length"), "Content-Length");
+    snprintf(http_res->headers[http_res->header_count][V], sizeof(body_length), "%zu", body_length);
+    http_res->header_count++;
+    snprintf(http_res->body, sizeof(http_res->body), "%s", body);
+    http_res->body_length = (int)body_length; 
 }
