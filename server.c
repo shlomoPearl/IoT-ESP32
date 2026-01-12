@@ -14,6 +14,7 @@
 #include "cJSON.h"
 #include "queue.h"
 #include "http_request.h"
+#include "http_response.h"
 
 #define PORT "7777"  // the port users will be connecting to.
 #define MAXDATASIZE 4096
@@ -25,6 +26,10 @@ pthread_mutex_t log_mutex;
 pthread_mutex_t queue_mutex;
 pthread_cond_t queue_cond;
 Queue q_clients;
+
+HTTPResponse res_success = {"HTTP/1.1", 200, "OK",
+                             {{ "Content-Type", "application/json" },{ "Content-Length", "40" }},
+                              2,"{\"status\":\"success\",\"message\":\"Success\"}",40};
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa){
@@ -94,17 +99,25 @@ void* listen_thread() {
             return NULL;
         }
         buf[numbytes] = '\0';
+        
+        // send back response back
+        char* res_str = malloc(sizeof(char)*MAXDATASIZE);
+        response_to_s(res_str, res_success, MAXDATASIZE);
+        if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
+            perror("response");
+        }
+        free(res_str);
+        
         // parse the JSON data
-        // printf("Received: \n%s\n", buf);
         HTTPRequest http_request = http_parser(buf);
-        printf("DEBUG $$ Method: %s\n", http_request.method);
-        printf("DEBUG $$ Path: %s\n", http_request.path);
-        printf("DEBUG $$ Version: %s\n", http_request.version);
-        printf("DEBUG $$ Body Length: %d\n", http_request.body_length);
-        printf("DEBUG $$ Body %s\n", http_request.body);
+        // printf("Received: \n%s\n$$$$$$$$\n\n", buf);
+        // printf("DEBUG $$ Method: %s\n", http_request.method);
+        // printf("DEBUG $$ Path: %s\n", http_request.path);
+        // printf("DEBUG $$ Version: %s\n", http_request.version);
+        // printf("DEBUG $$ Body Length: %d\n", http_request.body_length);
+        // printf("DEBUG $$ Body %s\n", http_request.body);
         cJSON *json = cJSON_Parse(http_request.body);
-        // char* json_s = cJSON_Print(json);
-        // printf("Parsed JSON: %s\n", json_s);
+
         write_json(json);
         cJSON_Delete(json);
         close(new_fd);
