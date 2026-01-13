@@ -28,8 +28,8 @@
 #define S_ERROR 3
 #define S_M "Success"
 #define R_M "Multiple Choices"
-#define C_M "Bad Request"
-#define S_M "Internal Server Error"
+#define C_E_M "Bad Request"
+#define S_E_M "Internal Server Error"
 
 pthread_mutex_t log_mutex; 
 pthread_mutex_t queue_mutex;
@@ -45,7 +45,7 @@ void *get_in_addr(struct sockaddr *sa){
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void log_event(char* event, char* time_e) {
+void log_event(char* event, char* time_e, char* email) {
     pthread_mutex_lock(&log_mutex);
     FILE* log_ptr = fopen(REPORT, "a");
     if (log_ptr == NULL) {
@@ -53,7 +53,7 @@ void log_event(char* event, char* time_e) {
         pthread_mutex_unlock(&log_mutex);
         return;
     }
-    fprintf(log_ptr, "EVENT: %s | TIME: %s\n", event, time_e);
+    fprintf(log_ptr, "EMAIL: %s | EVENT: %s | TIME: %s\n", email, event, time_e);
     fclose(log_ptr);
     pthread_mutex_unlock(&log_mutex);
 }
@@ -70,15 +70,19 @@ void write_json(cJSON *json) {
     // access the JSON data
     char* event_str = NULL;
     char* time_e_str = NULL;
+    char* email_str = NULL;
     cJSON *event = cJSON_GetObjectItemCaseSensitive(json, "EVENT");
     cJSON *time_e = cJSON_GetObjectItemCaseSensitive(json, "TIME");
+    cJSON *email = cJSON_GetObjectItemCaseSensitive(json, "EMAIL");
     if ((cJSON_IsString(event) && (event->valuestring != NULL))
-    && (cJSON_IsString(time_e) && (time_e->valuestring != NULL))) {
+    && (cJSON_IsString(time_e) && (time_e->valuestring != NULL))
+    && (cJSON_IsString(email) && (email->valuestring != NULL))) {
         event_str = event->valuestring;
         time_e_str = time_e->valuestring;
+        email_str = email->valuestring;
     }
     if (event_str != NULL && time_e_str != NULL){
-        log_event(event_str, time_e_str);
+        log_event(event_str, time_e_str, email_str);
     }
 }
 
@@ -105,7 +109,7 @@ void* listen_thread() {
         }
         buf[numbytes] = '\0';
         HTTPRequest http_request = http_parser(buf);
-        if (http_request.body_length > 0){
+        if (strcmp(http_request.method, "POST") == 0 && http_request.body_length > 0){
             // send back response back
             cJSON *json = cJSON_Parse(http_request.body);
             write_json(json);
@@ -115,14 +119,16 @@ void* listen_thread() {
         char* res_str = malloc(sizeof(char)*MAXDATASIZE);
         HTTPResponse* http_response = malloc(sizeof(HTTPResponse));
         char* response_body = malloc(sizeof(char)*MAX_BODY_SIZE);
-        snprintf(response_body, MAX_BODY_SIZE, "{\"message\":%s\n}", S_M);
-        build_respone(http_response, SUCCESS, SUCCESS, response_body, strlen(response_body));
+        snprintf(response_body, MAX_BODY_SIZE, "{\"message\":%s}", S_M);
+        build_respone(http_response, SUCCESS, SUCCESS, response_body, MAXDATASIZE);
         response_to_s(res_str, *http_response, MAXDATASIZE);
+        printf("Response Sent:\n%s\n", res_str);
         if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
             perror("response");
         }
         free(res_str);
         free(http_response);
+        free(response_body);
         // printf("Received: \n%s\n$$$$$$$$\n\n", buf);
         // printf("DEBUG $$ Method: %s\n", http_request.method);
         // printf("DEBUG $$ Path: %s\n", http_request.path);
