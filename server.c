@@ -18,9 +18,18 @@
 
 #define PORT "7777"  // the port users will be connecting to.
 #define MAXDATASIZE 4096
+#define MAX_BODY_SIZE 512
 #define THREADS_NUM 8
 #define BACKLOG 10   // in case the sensor makes multiple recognitions at once.
 #define REPORT "report.txt"
+#define SUCCESS 0
+#define REDIRECT 1
+#define C_ERROR 2
+#define S_ERROR 3
+#define S_M "Success"
+#define R_M "Multiple Choices"
+#define C_M "Bad Request"
+#define S_M "Internal Server Error"
 
 pthread_mutex_t log_mutex; 
 pthread_mutex_t queue_mutex;
@@ -96,7 +105,6 @@ void* listen_thread() {
         }
         buf[numbytes] = '\0';
         HTTPRequest http_request = http_parser(buf);
-        
         if (http_request.body_length > 0){
             // send back response back
             cJSON *json = cJSON_Parse(http_request.body);
@@ -106,8 +114,9 @@ void* listen_thread() {
         
         char* res_str = malloc(sizeof(char)*MAXDATASIZE);
         HTTPResponse* http_response = malloc(sizeof(HTTPResponse));
-        const char* response_body = "{\"status\":\"received\", \"message\":\"Success\"}";
-        build_respone(http_response, 0, 0, response_body, strlen(response_body));
+        char* response_body = malloc(sizeof(char)*MAX_BODY_SIZE);
+        snprintf(response_body, MAX_BODY_SIZE, "{\"message\":%s\n}", S_M);
+        build_respone(http_response, SUCCESS, SUCCESS, response_body, strlen(response_body));
         response_to_s(res_str, *http_response, MAXDATASIZE);
         if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
             perror("response");
