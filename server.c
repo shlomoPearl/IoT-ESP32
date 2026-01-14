@@ -97,7 +97,20 @@ void* listen_thread() {
         
         int numbytes;
         char buf[MAXDATASIZE];
+        char* res_str = malloc(sizeof(char)*MAXDATASIZE);
+        HTTPResponse* http_response = malloc(sizeof(HTTPResponse));
+        char* response_body = malloc(sizeof(char)*MAX_BODY_SIZE);
+
         if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+            snprintf(response_body, MAX_BODY_SIZE, "{\"message\":%s}", C_E_M);
+            build_respone(http_response, C_ERROR, C_ERROR, response_body, MAXDATASIZE);
+            response_to_s(res_str, *http_response, MAXDATASIZE);
+            if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
+                perror("response");
+            }
+            free(res_str);
+            free(http_response);
+            free(response_body);
             perror("recv");
             close(new_fd);
             return NULL;
@@ -116,25 +129,15 @@ void* listen_thread() {
             cJSON_Delete(json);
         }
         
-        char* res_str = malloc(sizeof(char)*MAXDATASIZE);
-        HTTPResponse* http_response = malloc(sizeof(HTTPResponse));
-        char* response_body = malloc(sizeof(char)*MAX_BODY_SIZE);
         snprintf(response_body, MAX_BODY_SIZE, "{\"message\":%s}", S_M);
         build_respone(http_response, SUCCESS, SUCCESS, response_body, MAXDATASIZE);
         response_to_s(res_str, *http_response, MAXDATASIZE);
-        printf("Response Sent:\n%s\n", res_str);
         if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
             perror("response");
         }
         free(res_str);
         free(http_response);
         free(response_body);
-        // printf("Received: \n%s\n$$$$$$$$\n\n", buf);
-        // printf("DEBUG $$ Method: %s\n", http_request.method);
-        // printf("DEBUG $$ Path: %s\n", http_request.path);
-        // printf("DEBUG $$ Version: %s\n", http_request.version);
-        // printf("DEBUG $$ Body Length: %d\n", http_request.body_length);
-        // printf("DEBUG $$ Body %s\n", http_request.body);
         close(new_fd);
     }
     return NULL;
