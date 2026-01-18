@@ -59,15 +59,6 @@ void log_event(char* event, char* time_e, char* email) {
 }
 
 void write_json(cJSON *json) {
-    // parse the JSON data
-    if (json == NULL) {
-        const char *error_ptr = cJSON_GetErrorPtr();
-        if (error_ptr != NULL) {
-            printf("Error: %s\n", error_ptr);
-        }
-        return;
-    }
-    // access the JSON data
     char* event_str = NULL;
     char* time_e_str = NULL;
     char* email_str = NULL;
@@ -97,48 +88,48 @@ void* listen_thread() {
         
         int numbytes;
         char buf[MAXDATASIZE];
-        char* res_str = malloc(sizeof(char)*MAXDATASIZE);
-        HTTPResponse* http_response = malloc(sizeof(HTTPResponse));
-        char* response_body = malloc(sizeof(char)*MAX_BODY_SIZE);
+        char res_str[MAXDATASIZE];
+        HTTPResponse http_response;
+        char response_body[MAX_BODY_SIZE];
 
         if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-            snprintf(response_body, MAX_BODY_SIZE, "{\"message\":%s}", C_E_M);
-            build_respone(http_response, C_ERROR, C_ERROR, response_body, MAXDATASIZE);
-            response_to_s(res_str, *http_response, MAXDATASIZE);
-            if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
-                perror("response");
-            }
-            free(res_str);
-            free(http_response);
-            free(response_body);
             perror("recv");
+            snprintf(response_body, MAX_BODY_SIZE, "{\"message\":\"%s\"}", S_E_M);
+            build_respone(&http_response, S_ERROR, S_ERROR, response_body, MAXDATASIZE);
+            response_to_s(res_str, &http_response, MAXDATASIZE);
+            send(new_fd, res_str, strlen(res_str), 0);
             close(new_fd);
-            return NULL;
+            continue;
         }
         if (numbytes == 0) {
             // Connection closed by client
             close(new_fd);
-            return NULL;
+            continue;
         }
         buf[numbytes] = '\0';
         HTTPRequest http_request = http_parser(buf);
         if (strcmp(http_request.method, "POST") == 0 && http_request.body_length > 0){
-            // send back response back
             cJSON *json = cJSON_Parse(http_request.body);
-            write_json(json);
+            if (json == NULL){
+                snprintf(response_body, MAX_BODY_SIZE, "{\"message\":\"%s\"}", C_E_M);
+                build_respone(&http_response, C_ERROR, C_ERROR, response_body, MAXDATASIZE);
+                response_to_s(res_str, &http_response, MAXDATASIZE);
+                send(new_fd, res_str, strlen(res_str), 0);
+                close(new_fd);
+                continue;
+            } else {
+                write_json(json);
+            }
             cJSON_Delete(json);
         }
-        
-        snprintf(response_body, MAX_BODY_SIZE, "{\"message\":%s}", S_M);
-        build_respone(http_response, SUCCESS, SUCCESS, response_body, MAXDATASIZE);
-        response_to_s(res_str, *http_response, MAXDATASIZE);
+        snprintf(response_body, MAX_BODY_SIZE, "{\"message\":\"%s\"}", S_M);
+        build_respone(&http_response, SUCCESS, SUCCESS, response_body, MAX_BODY_SIZE);
+        response_to_s(res_str, &http_response, MAXDATASIZE);
         if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
             perror("response");
         }
-        free(res_str);
-        free(http_response);
-        free(response_body);
         close(new_fd);
+        continue;
     }
     return NULL;
 }

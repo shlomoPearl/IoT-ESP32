@@ -13,6 +13,11 @@ HTTPRequest http_parser(char request_s[]) {
     int body_f = 0;
     http_request.header_count = 0;
     const char *delimiter = "\r\n";
+    const char *body_delimiter = "\r\n\r\n";
+    char* body = strstr(request_s, body_delimiter);
+    *body = '\0';
+    body += strlen(body_delimiter);
+    strncpy(http_request.body, body, sizeof(http_request.body));
     char* line = strtok(request_s, delimiter);
     sscanf(line, "%s %s %s", http_request.method, http_request.path, http_request.version);
     while (line != NULL) {
