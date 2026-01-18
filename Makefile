@@ -3,7 +3,7 @@ CC = gcc
 H = http
 all: server
 server: cJSON.c cJSON.h queue.c queue.h server.c $(H)_request.h $(H)_request.c $(H)_response.h $(H)_response.c 
-	$(CC) -o server server.c queue.c cJSON.c http_request.c http_response.c -pthread $(FLAGGS)
+	$(CC) -o server server.c queue.c cJSON.c http_request.c http_response.c -lpthread -lhpdf $(FLAGGS)
 
 run:
 	./server
