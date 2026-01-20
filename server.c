@@ -15,6 +15,8 @@
 #include "queue.h"
 #include "http_request.h"
 #include "http_response.h"
+#include "pdf.h"
+#include "get_time.h"
 
 #define PORT "7777"  // the port users will be connecting to.
 #define MAXDATASIZE 4096
