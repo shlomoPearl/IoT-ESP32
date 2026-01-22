@@ -39,10 +39,15 @@
 #define ST_FONT "Helvetica"
 #define ST_SIZE 18
 #define B_FONT "Helvetica"
-#define B_SIZE 14
+#define B_SIZE 12
 #define TIME_LEN 128
+#define BORDER 50
+#define ST_SPACE 30
+#define NL_SPACE 20
 
 pthread_mutex_t log_mutex; 
 pthread_mutex_t queue_mutex;
+pthread_mutex_t pdf_mutex;
 pthread_cond_t queue_cond;
 Queue q_clients;
+time_t start_time;
