@@ -9,3 +9,4 @@ cJSON.h
 cJSON.c
 *.json
 *.txt
+report_*.pdf
