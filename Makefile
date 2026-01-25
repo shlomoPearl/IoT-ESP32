@@ -11,4 +11,4 @@ run:
 .PHONY: all run clean
 
 clean:
-	rm -f server report.txt
+	rm -f server report_*.pdf
