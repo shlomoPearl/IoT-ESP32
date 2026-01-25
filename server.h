@@ -23,7 +23,9 @@
 #define MAX_BODY_SIZE 512
 #define THREADS_NUM 8
 #define BACKLOG 10   // in case the sensor makes multiple recognitions at once.
-#define REPORT "report.txt"
+#define R_NAME "report_"
+#define R_TYPE ".pdf"
+#define R_SIZE 16
 #define SUCCESS 0
 #define REDIRECT 1
 #define C_ERROR 2
@@ -32,18 +34,8 @@
 #define R_M "Multiple Choices"
 #define C_E_M "Bad Request"
 #define S_E_M "Internal Server Error"
-#define TITLE "EVENT REPORT"
-#define T_FONT "Helvetica-Bold"
-#define T_SIZE 24
-#define SUB_TITLE "Generated on: "
-#define ST_FONT "Helvetica"
-#define ST_SIZE 18
-#define B_FONT "Helvetica"
-#define B_SIZE 12
-#define TIME_LEN 128
-#define BORDER 50
-#define ST_SPACE 30
-#define NL_SPACE 20
+#define EVENT_SIZE 128
+#define RUN_HOURS 1
 
 pthread_mutex_t log_mutex; 
 pthread_mutex_t queue_mutex;
@@ -51,3 +43,4 @@ pthread_mutex_t pdf_mutex;
 pthread_cond_t queue_cond;
 Queue q_clients;
 time_t start_time;
+int report_index = 0;

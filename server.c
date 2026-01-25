@@ -9,20 +9,14 @@ void *get_in_addr(struct sockaddr *sa){
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void log_event(char* event, char* time_e, char* email) {
+void log_event(PDF* pdf, char event[]) {
     pthread_mutex_lock(&log_mutex);
-    FILE* log_ptr = fopen(REPORT, "a");
-    if (log_ptr == NULL) {
-        printf("Error: Unable to open the log file.\n");
-        pthread_mutex_unlock(&log_mutex);
-        return;
-    }
-    fprintf(log_ptr, "EMAIL: %s | EVENT: %s | TIME: %s\n", email, event, time_e);
-    fclose(log_ptr);
+    write_to_pdf(pdf, event, pdf->border);
+    pdf->y_pos -= NL_SPACE;
     pthread_mutex_unlock(&log_mutex);
 }
 
-void write_json(cJSON *json) {
+void json_to_str(char event_buffer[], cJSON *json) {
     char* event_str = NULL;
     char* time_e_str = NULL;
     char* email_str = NULL;
@@ -36,9 +30,11 @@ void write_json(cJSON *json) {
         time_e_str = time_e->valuestring;
         email_str = email->valuestring;
     }
-    if (event_str != NULL && time_e_str != NULL){
-        log_event(event_str, time_e_str, email_str);
+    if (event_str != NULL && time_e_str != NULL && email_str != NULL) {
+        snprintf(event_buffer, strlen(event_buffer), "EMAIL: %s | EVENT: %s | TIME: %s",
+                                                     email_str, event_str, time_e_str);        
     }
+    // printf("DEBUG: Event logged - %s\n", event_buffer);
 }
 
 void* listen_thread(void* arg) {
@@ -83,7 +79,22 @@ void* listen_thread(void* arg) {
                 close(new_fd);
                 continue;
             } else {
-                write_json(json);
+                char event_buffer[EVENT_SIZE];
+                json_to_str(event_buffer, json);
+                printf("DEBUG: event_buffer - %s\n", event_buffer);
+                log_event(pdf_struct, event_buffer);
+                time_t now;
+                get_current_time(&now);
+                if (time_pass(RUN_HOURS, &start_time, &now)) {
+                    char report_name[16];
+                    snprintf(report_name, R_SIZE, "%s%d%s", R_NAME, report_index++, R_TYPE);
+                    pthread_mutex_lock(&pdf_mutex);
+                    save_pdf(pdf_struct, report_name);
+                    free_pdf(pdf_struct);
+                    get_current_time(&start_time);
+                    init_pdf(pdf_struct);
+                    pthread_mutex_unlock(&pdf_mutex);
+                }
             }
             cJSON_Delete(json);
         }
@@ -164,26 +175,7 @@ int main(void) {
     printf("server: waiting for connections...\n");
     get_current_time(&start_time);
     PDF* pdf_struct = malloc(sizeof(PDF));
-    pdf_struct->doc = HPDF_New(NULL, NULL);
-    if (!pdf_struct->doc) {
-        printf("Error: Cannot create PDF object\n");
-        return 1;
-    }
-    add_page(pdf_struct);
-    pdf_struct->border = BORDER;
-    set_font_and_size(pdf_struct, T_FONT, T_SIZE);
-    float tw = HPDF_Page_TextWidth (pdf_struct->page, TITLE);
-    pdf_struct->y_pos -= pdf_struct->border;
-    write_to_pdf(pdf_struct, TITLE, (pdf_struct->width - tw) / 2);
-    
-    char sub_titel_buffer[TIME_LEN];
-    strncpy(sub_titel_buffer, SUB_TITLE, strlen(SUB_TITLE) + 1);
-    get_current_time_str(sub_titel_buffer + strlen(SUB_TITLE), TIME_LEN - strlen(SUB_TITLE));
-    set_font_and_size(pdf_struct, ST_FONT, ST_SIZE);
-    tw = HPDF_Page_TextWidth (pdf_struct->page, sub_titel_buffer);
-    pdf_struct->y_pos -= ST_SPACE;
-    write_to_pdf(pdf_struct, sub_titel_buffer, (pdf_struct->width - tw) / 2);
-    set_font_and_size(pdf_struct, B_FONT, B_SIZE);
+    init_pdf(pdf_struct);
 
     for (int i = 0; i < THREADS_NUM; i++) {
         if (pthread_create(&th[i], NULL, listen_thread, (void*)pdf_struct) != 0) {
@@ -214,6 +206,7 @@ int main(void) {
             perror("Failed to join the thread");
         }
     }
+    free(pdf_struct);
     pthread_mutex_destroy(&log_mutex);
     pthread_mutex_destroy(&queue_mutex);
     pthread_mutex_destroy(&pdf_mutex);
