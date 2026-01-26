@@ -31,10 +31,9 @@ void json_to_str(char event_buffer[], cJSON *json) {
         email_str = email->valuestring;
     }
     if (event_str != NULL && time_e_str != NULL && email_str != NULL) {
-        snprintf(event_buffer, strlen(event_buffer), "EMAIL: %s | EVENT: %s | TIME: %s",
+        snprintf(event_buffer, EVENT_SIZE, "EMAIL: %s | EVENT: %s | TIME: %s",
                                                      email_str, event_str, time_e_str);        
     }
-    // printf("DEBUG: Event logged - %s\n", event_buffer);
 }
 
 void* report_writer(void* arg){
@@ -107,7 +106,6 @@ void* data_handler(void* arg) {
             } else {
                 char event_buffer[EVENT_SIZE];
                 json_to_str(event_buffer, json);
-                printf("DEBUG: event_buffer - %s\n", event_buffer);
                 log_event(pdf_struct, event_buffer);
             }
             cJSON_Delete(json);
