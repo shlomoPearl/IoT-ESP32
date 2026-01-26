@@ -35,12 +35,13 @@
 #define C_E_M "Bad Request"
 #define S_E_M "Internal Server Error"
 #define EVENT_SIZE 128
-#define RUN_HOURS 1
+#define SAVE_INTERVAL_S 60
 
 pthread_mutex_t log_mutex; 
 pthread_mutex_t queue_mutex;
-pthread_mutex_t pdf_mutex;
+pthread_mutex_t report_mutex;
 pthread_cond_t queue_cond;
+pthread_cond_t report_cond;
 Queue q_clients;
 time_t start_time;
 int report_index = 0;

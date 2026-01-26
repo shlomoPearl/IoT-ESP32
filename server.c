@@ -37,7 +37,33 @@ void json_to_str(char event_buffer[], cJSON *json) {
     // printf("DEBUG: Event logged - %s\n", event_buffer);
 }
 
-void* listen_thread(void* arg) {
+void* report_writer(void* arg){
+    PDF* pdf_struct = (PDF*)arg;
+    if (pdf_struct == NULL) {
+        perror("PDF struct is NULL");
+        return NULL;
+    }
+    while (1) {
+        struct timespec ts;
+        ts.tv_sec = time(NULL) + SAVE_INTERVAL_S;
+        ts.tv_nsec = 0;
+        pthread_mutex_lock(&report_mutex);
+        int result = pthread_cond_timedwait(&report_cond, &report_mutex, &ts);
+        if (result == ETIMEDOUT) {
+            char report_name[16];
+            snprintf(report_name, R_SIZE, "%s%d%s", R_NAME, report_index++, R_TYPE);
+            save_pdf(pdf_struct, report_name);
+            free_pdf(pdf_struct);
+            get_current_time(&start_time);
+            init_pdf(pdf_struct);
+
+        }
+        pthread_mutex_unlock(&report_mutex);
+    }
+    return NULL;
+}
+
+void* data_handler(void* arg) {
     PDF* pdf_struct = (PDF*)arg;
     while (1) {
         pthread_mutex_lock(&queue_mutex);
@@ -83,18 +109,6 @@ void* listen_thread(void* arg) {
                 json_to_str(event_buffer, json);
                 printf("DEBUG: event_buffer - %s\n", event_buffer);
                 log_event(pdf_struct, event_buffer);
-                time_t now;
-                get_current_time(&now);
-                if (time_pass(RUN_HOURS, &start_time, &now)) {
-                    char report_name[16];
-                    snprintf(report_name, R_SIZE, "%s%d%s", R_NAME, report_index++, R_TYPE);
-                    pthread_mutex_lock(&pdf_mutex);
-                    save_pdf(pdf_struct, report_name);
-                    free_pdf(pdf_struct);
-                    get_current_time(&start_time);
-                    init_pdf(pdf_struct);
-                    pthread_mutex_unlock(&pdf_mutex);
-                }
             }
             cJSON_Delete(json);
         }
@@ -122,8 +136,9 @@ int main(void) {
     pthread_t th[THREADS_NUM];
     pthread_mutex_init(&log_mutex, NULL);
     pthread_mutex_init(&queue_mutex, NULL);
-    pthread_mutex_init(&pdf_mutex, NULL);
+    pthread_mutex_init(&report_mutex, NULL);
     pthread_cond_init(&queue_cond, NULL);
+    pthread_cond_init(&report_cond, NULL);
     initializeQueue(&q_clients);
     
     memset(&hints, 0, sizeof hints);
@@ -177,11 +192,12 @@ int main(void) {
     PDF* pdf_struct = malloc(sizeof(PDF));
     init_pdf(pdf_struct);
 
-    for (int i = 0; i < THREADS_NUM; i++) {
-        if (pthread_create(&th[i], NULL, listen_thread, (void*)pdf_struct) != 0) {
+    for (int i = 0; i < THREADS_NUM - 1; i++) {
+        if (pthread_create(&th[i], NULL, data_handler, (void*)pdf_struct) != 0) {
             perror("pthread_create");
         }
     }
+    pthread_create(&th[THREADS_NUM - 1], NULL, report_writer, (void*)pdf_struct);
 
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
@@ -209,8 +225,9 @@ int main(void) {
     free(pdf_struct);
     pthread_mutex_destroy(&log_mutex);
     pthread_mutex_destroy(&queue_mutex);
-    pthread_mutex_destroy(&pdf_mutex);
+    pthread_mutex_destroy(&report_mutex);
     pthread_cond_destroy(&queue_cond);
+    pthread_cond_destroy(&report_cond);
     close(sockfd);
     return 0;
 }
