@@ -1,3 +1,4 @@
+#pragma once
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -45,3 +46,9 @@ pthread_cond_t report_cond;
 Queue q_clients;
 time_t start_time;
 int report_index = 0;
+
+void* data_handler(void*);
+void* report_writer(void*);
+void json_to_str(char*, cJSON*);
+void log_event(PDF*, char[]);
+void *get_in_addr(struct sockaddr);
