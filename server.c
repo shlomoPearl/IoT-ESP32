@@ -31,8 +31,10 @@ void json_to_str(char event_buffer[], cJSON *json) {
         email_str = email->valuestring;
     }
     if (event_str != NULL && time_e_str != NULL && email_str != NULL) {
-        snprintf(event_buffer, EVENT_SIZE, "EMAIL: %s | EVENT: %s | TIME: %s",
-                                                     email_str, event_str, time_e_str);        
+        strncpy(to_mail, email_str, sizeof(to_mail) - 1);
+        to_mail[sizeof(to_mail) - 1] = '\0';
+        snprintf(event_buffer, EVENT_SIZE, "EVENT: %s | TIME: %s",
+                                           event_str, time_e_str);        
     }
 }
 
@@ -55,7 +57,16 @@ void* report_writer(void* arg){
             free_pdf(pdf_struct);
             get_current_time(&start_time);
             init_pdf(pdf_struct);
-
+            printf("Report saved: %s\n", report_name);
+            Email email = {0};
+            strncpy(email.from, MAIL_SENDER, sizeof(email.from) - 1);
+            email.from[sizeof(email.from) - 1] = '\0';
+            strncpy(email.to, to_mail, sizeof(email.to) - 1);
+            email.to[sizeof(email.to) - 1] = '\0';
+            format_email_subject(&email);
+            format_email_body(&email);
+            strncpy(email.pdf_path, report_name, sizeof(email.pdf_path) - 1);
+            email.pdf_path[sizeof(email.pdf_path) - 1] = '\0';
         }
         pthread_mutex_unlock(&report_mutex);
     }
@@ -138,7 +149,7 @@ int main(void) {
     pthread_cond_init(&queue_cond, NULL);
     pthread_cond_init(&report_cond, NULL);
     initializeQueue(&q_clients);
-    
+
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;

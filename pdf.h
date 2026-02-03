@@ -5,10 +5,11 @@
 #include <hpdf.h>
 #include "get_time.h"
 
+
 #define TITLE "EVENT REPORT"
 #define T_FONT "Helvetica-Bold"
 #define T_SIZE 24
-#define SUB_TITLE "Generated on: "
+#define SUB_TITLE "Started at: "
 #define ST_FONT "Helvetica"
 #define ST_SIZE 18
 #define B_FONT "Helvetica"

@@ -18,6 +18,7 @@
 #include "http_response.h"
 #include "pdf.h"
 #include "get_time.h"
+#include "email.h"
 
 #define PORT "7777"  // the port users will be connecting to.
 #define MAXDATASIZE 4096
@@ -37,6 +38,7 @@
 #define S_E_M "Internal Server Error"
 #define EVENT_SIZE 128
 #define SAVE_INTERVAL_S 60
+#define MAIL_SENDER "no-reply@CServer.com"
 
 pthread_mutex_t log_mutex; 
 pthread_mutex_t queue_mutex;
@@ -47,8 +49,9 @@ Queue q_clients;
 time_t start_time;
 int report_index = 0;
 
+char to_mail[32];
+
 void* data_handler(void*);
 void* report_writer(void*);
 void json_to_str(char*, cJSON*);
 void log_event(PDF*, char[]);
-void *get_in_addr(struct sockaddr);
