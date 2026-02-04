@@ -155,10 +155,14 @@ static int is_valid_email(const char *email_addr) {
     return 1;
 }
 
-void format_email_body(Email *email) {
+void format_email_body(Email *email, int index, const char* start_time, const char* end_time) {
     snprintf(email->body, sizeof(email->body),
         "Dear User,\n\n"
         "Your event report has been generated successfully.\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Report Number:    #%d\n"
+        "Time Period:      %s to %s\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "Please find the detailed report attached as a PDF document.\n\n"
         "The attached PDF contains comprehensive information about the\n"
         "reported event, including all relevant data and analysis.\n\n"
@@ -168,12 +172,13 @@ void format_email_body(Email *email) {
         "Automated Event Report System\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "This is an automated message. Please do not reply to this email.\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        , index, start_time, end_time);
 }
 
-void format_email_subject(Email *email) {
+void format_email_subject(Email *email, int index) {
     snprintf(email->subject, sizeof(email->subject),
-             "# Event Report #");
+             "# Event Report # Number - %d", index);
 }
 
 int send_email(const Email *email) {
