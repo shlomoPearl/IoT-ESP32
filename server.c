@@ -23,12 +23,19 @@ void json_to_str(char event_buffer[], cJSON *json) {
     cJSON *event = cJSON_GetObjectItemCaseSensitive(json, "EVENT");
     cJSON *time_e = cJSON_GetObjectItemCaseSensitive(json, "TIME");
     cJSON *email = cJSON_GetObjectItemCaseSensitive(json, "EMAIL");
+    if (!event || !time_e || !email) {
+        fprintf(stderr, "Missing required JSON fields\n");
+        return;
+    }
     if ((cJSON_IsString(event) && (event->valuestring != NULL))
     && (cJSON_IsString(time_e) && (time_e->valuestring != NULL))
     && (cJSON_IsString(email) && (email->valuestring != NULL))) {
         event_str = event->valuestring;
         time_e_str = time_e->valuestring;
         email_str = email->valuestring;
+    } else {
+        fprintf(stderr, "Invalid JSON field types\n");
+        return;
     }
     if (event_str != NULL && time_e_str != NULL && email_str != NULL) {
         strncpy(to_mail, email_str, sizeof(to_mail) - 1);
@@ -51,22 +58,27 @@ void* report_writer(void* arg){
         pthread_mutex_lock(&report_mutex);
         int result = pthread_cond_timedwait(&report_cond, &report_mutex, &ts);
         if (result == ETIMEDOUT) {
-            char report_name[16];
-            snprintf(report_name, R_SIZE, "%s%d%s", R_NAME, report_index++, R_TYPE);
+            char report_name[64];
+            snprintf(report_name, R_SIZE, "%s%d%s", R_NAME, ++report_index, R_TYPE);
             save_pdf(pdf_struct, report_name);
-            free_pdf(pdf_struct);
-            get_current_time(&start_time);
-            init_pdf(pdf_struct);
+            char end_time[64];
+            get_current_time_str(end_time, sizeof(end_time));
             printf("Report saved: %s\n", report_name);
             Email email = {0};
             strncpy(email.from, MAIL_SENDER, sizeof(email.from) - 1);
             email.from[sizeof(email.from) - 1] = '\0';
             strncpy(email.to, to_mail, sizeof(email.to) - 1);
             email.to[sizeof(email.to) - 1] = '\0';
-            format_email_subject(&email);
-            format_email_body(&email);
+            format_email_subject(&email, report_index);
+            char start_time[64];
+            get_time_from_struct(start_time, &start_timeinfo, sizeof(start_time));
+            format_email_body(&email, report_index, start_time, end_time);
             strncpy(email.pdf_path, report_name, sizeof(email.pdf_path) - 1);
             email.pdf_path[sizeof(email.pdf_path) - 1] = '\0';
+            send_email(&email);
+            free_pdf(pdf_struct);
+            init_pdf(pdf_struct);
+            init_time(&start_timeinfo);
         }
         pthread_mutex_unlock(&report_mutex);
     }
@@ -122,7 +134,7 @@ void* data_handler(void* arg) {
             cJSON_Delete(json);
         }
         snprintf(response_body, MAX_BODY_SIZE, "{\"message\":\"%s\"}", S_M);
-        build_respone(&http_response, SUCCESS, SUCCESS, response_body, MAX_BODY_SIZE);
+        build_respone(&http_response, SUCCESS, SUCCESS, response_body, MAXDATASIZE);
         response_to_s(res_str, &http_response, MAXDATASIZE);
         if ((numbytes = send(new_fd, res_str, strlen(res_str), 0)) != (int)strlen(res_str)){
             perror("response");
@@ -197,8 +209,8 @@ int main(void) {
     }
     
     printf("server: waiting for connections...\n");
-    get_current_time(&start_time);
     PDF* pdf_struct = malloc(sizeof(PDF));
+    init_time(&start_timeinfo);
     init_pdf(pdf_struct);
 
     for (int i = 0; i < THREADS_NUM - 1; i++) {

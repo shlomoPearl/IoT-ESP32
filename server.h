@@ -48,6 +48,7 @@ pthread_cond_t report_cond;
 Queue q_clients;
 time_t start_time;
 int report_index = 0;
+struct tm start_timeinfo;
 
 char to_mail[32];
 
