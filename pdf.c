@@ -28,7 +28,7 @@ void write_to_pdf(PDF* pdf, const char* txt, int x){
 void init_pdf(PDF* pdf){
     pdf->doc = HPDF_New(NULL, NULL);
     if (!pdf->doc) {
-        printf("Error: Cannot create PDF object\n");
+        fprintf(stderr, "Error: cannot create PDF object\n");
         return;
     }
     add_page(pdf);
